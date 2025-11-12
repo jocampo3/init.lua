@@ -12,8 +12,13 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 require("lazy").setup({
 	spec = {
+    { "windwp/nvim-autopairs",
+			event = "InsertEnter",
+			config = true
+		},
 		-- LSP & Completion
 		{ "neovim/nvim-lspconfig" },
+		{ "tpope/vim-fugitive" },
 		{ "williamboman/mason.nvim" },
 		{ "williamboman/mason-lspconfig.nvim", dependencies = { "neovim/nvim-lspconfig" } },
 		{
@@ -23,18 +28,30 @@ require("lazy").setup({
 				"saadparwaiz1/cmp_luasnip",
 				"L3MON4D3/LuaSnip",
 				"zbirenbaum/copilot-cmp",
-			}
+			},
+		},
+		{
+			"WhoIsSethDaniel/mason-tool-installer.nvim",
+			config = function()
+				require("mason-tool-installer").setup({
+					ensure_installed = {
+						"prettier",
+						"stylua",
+						-- add other formatters
+					},
+				})
+			end,
 		},
 		{ "nvim-treesitter/nvim-treesitter", build = ":TSUpdate" },
 
 		-- UI Enhancements
-		{ "EdenEast/nightfox.nvim",          name = "nightfox",                               priority = 1000 },
-		{ "nvim-lualine/lualine.nvim",       dependencies = { "nvim-tree/nvim-web-devicons" } },
-		{ "folke/which-key.nvim",            event = "VeryLazy" },
-		{ "nvim-tree/nvim-tree.lua",         dependencies = { "nvim-tree/nvim-web-devicons" } },
+		{ "EdenEast/nightfox.nvim", name = "nightfox", priority = 1000 },
+		{ "nvim-lualine/lualine.nvim", dependencies = { "nvim-tree/nvim-web-devicons" } },
+		{ "folke/which-key.nvim", event = "VeryLazy" },
+		{ "nvim-tree/nvim-tree.lua", dependencies = { "nvim-tree/nvim-web-devicons" } },
 
 		-- Productivity
-		{ "nvim-telescope/telescope.nvim",   cmd = "Telescope" },
+		{ "nvim-telescope/telescope.nvim", cmd = "Telescope" },
 		{ "stevearc/conform.nvim" },
 		{
 			"theprimeagen/harpoon",
@@ -44,7 +61,13 @@ require("lazy").setup({
 				require("harpoon"):setup()
 			end,
 			keys = {
-				{ "<leader>A", function() require("harpoon"):list():append() end,  desc = "harpoon file", },
+				{
+					"<leader>A",
+					function()
+						require("harpoon"):list():append()
+					end,
+					desc = "harpoon file",
+				},
 				{
 					"<tab>",
 					function()
@@ -53,11 +76,41 @@ require("lazy").setup({
 					end,
 					desc = "harpoon quick menu",
 				},
-				{ "<leader>1", function() require("harpoon"):list():select(1) end, desc = "harpoon to file 1", },
-				{ "<leader>2", function() require("harpoon"):list():select(2) end, desc = "harpoon to file 2", },
-				{ "<leader>3", function() require("harpoon"):list():select(3) end, desc = "harpoon to file 3", },
-				{ "<leader>4", function() require("harpoon"):list():select(4) end, desc = "harpoon to file 4", },
-				{ "<leader>5", function() require("harpoon"):list():select(5) end, desc = "harpoon to file 5", },
+				{
+					"<leader>1",
+					function()
+						require("harpoon"):list():select(1)
+					end,
+					desc = "harpoon to file 1",
+				},
+				{
+					"<leader>2",
+					function()
+						require("harpoon"):list():select(2)
+					end,
+					desc = "harpoon to file 2",
+				},
+				{
+					"<leader>3",
+					function()
+						require("harpoon"):list():select(3)
+					end,
+					desc = "harpoon to file 3",
+				},
+				{
+					"<leader>4",
+					function()
+						require("harpoon"):list():select(4)
+					end,
+					desc = "harpoon to file 4",
+				},
+				{
+					"<leader>5",
+					function()
+						require("harpoon"):list():select(5)
+					end,
+					desc = "harpoon to file 5",
+				},
 			},
 		},
 		-- Icons & Misc
@@ -88,17 +141,20 @@ require("mason-lspconfig").setup({
 	automatic_installation = true,
 })
 
-
 local cmp = require("cmp")
 cmp.setup({
-	snippet = { expand = function(args) require("luasnip").lsp_expand(args.body) end },
+	snippet = {
+		expand = function(args)
+			require("luasnip").lsp_expand(args.body)
+		end,
+	},
 	mapping = cmp.mapping.preset.insert({
 		["<C-n>"] = cmp.mapping.select_next_item(),
 		["<C-p>"] = cmp.mapping.select_prev_item(),
 		["<CR>"] = cmp.mapping.confirm({ select = true }),
 	}),
 	sources = cmp.config.sources({
-		{ name = "nvim_lsp" },   -- LSP completions only
+		{ name = "nvim_lsp" }, -- LSP completions only
 		{ name = "copilot", group_index = 2 }, -- Copilot (secondary source)
 	}),
 })
@@ -118,11 +174,30 @@ require("conform").setup({
 		erlang = { "erl_tidy" },
 		exlixir = { "mix format" },
 	},
-	format_on_save = { timeout_ms = 500, lsp_fallback = true },
+	format_on_save = function(bufnr)
+		if vim.b[bufnr].disable_autoformat then
+			return
+		end
+	end,
+	-- Configure formatter options
+	formatters = {
+		prettier = {
+			prepend_args = function(self, ctx)
+				-- Set different tab widths based on filetype
+				if ctx.filetype == "javascript" or ctx.filetype == "typescript" then
+					return { "--tab-width", "2" }
+				elseif ctx.filetype == "css" then
+					return { "--tab-width", "4" }
+				end
+				return { "--tab-width", "4" } -- default
+			end,
+		},
+	},
 })
 
-vim.keymap.set({ "n", "v" }, "<leader>lf", function() require("conform").format({ async = true }) end,
-	{ desc = "Format Buffer" })
+vim.keymap.set({ "n", "v" }, "<leader>lf", function()
+	require("conform").format({ async = true })
+end, { desc = "Format Buffer" })
 
 require("lualine").setup({
 	options = {
@@ -134,9 +209,29 @@ require("lualine").setup({
 })
 
 require("nvim-treesitter.configs").setup({
-	ensure_installed = { "lua", "python", "javascript", "typescript", "go", "rust", "json", "yaml", "html", "css", "bash", "gleam", "erlang", "elixir" }, -- Add more as needed
-	highlight = { enable = true },                                                                                                                 -- Enable syntax highlighting
-	indent = { enable = true },                                                                                                                    -- Enable indentation based on Treesitter
+	ensure_installed = {
+		"lua",
+		"python",
+		"javascript",
+		"typescript",
+		"go",
+		"rust",
+		"json",
+		"yaml",
+		"html",
+		"css",
+		"bash",
+		"php",
+		"markdown",
+		"markdown_inline",
+		"svelte",
+	  "ruby",
+	}, -- Add more as needed
+	highlight = { enable = true }, -- Enable syntax highlighting
+	indent = {
+		enable = true,
+		disable = { "javascript", "typescript", "css", "html" }, -- Add problematic filetypes
+	},
 	incremental_selection = {
 		enable = true,
 		keymaps = {
@@ -160,7 +255,6 @@ vim.keymap.set("n", "<leader>fb", telescope.buffers, { desc = "List Buffers" })
 vim.keymap.set("n", "<leader>gc", telescope.git_commits, { desc = "List Commits" })
 vim.keymap.set("n", "<leader>gb", telescope.git_branches, { desc = "List Branches" })
 vim.keymap.set("n", "<leader>gs", telescope.git_status, { desc = "Show Status" })
-
 
 -- Window navigation
 vim.keymap.set("n", "<leader>bs", ":vsplit<CR>", { desc = "Split Left" })
@@ -198,15 +292,14 @@ end
 
 vim.keymap.set("n", "<leader>dt", toggle_diagnostic, { desc = "Toggle Diagnostics" })
 
-
 -- Clipboard keybindings
 vim.keymap.set("n", "<leader>s", function()
 	local unnamed = vim.fn.getreg('"')
-	local system = vim.fn.getreg('*')
+	local system = vim.fn.getreg("*")
 
 	-- Swap the registers
 	vim.fn.setreg('"', system)
-	vim.fn.setreg('*', unnamed)
+	vim.fn.setreg("*", unnamed)
 
 	print("Swapped unnamed register and system clipboard")
 end, { desc = "Swap paste buffer with system clipboard" })
@@ -216,26 +309,33 @@ vim.keymap.set("x", "<leader>p", [["_dP]], { desc = "Paste without overwrite" })
 -- Enable true color support
 vim.opt.termguicolors = true
 vim.opt.background = "dark"
-vim.cmd.colorscheme("nightfox");
+vim.cmd.colorscheme("nightfox")
 
 -- Number toggle
 vim.opt.number = true
 local num_group = vim.api.nvim_create_augroup("numbertoggle", {})
-vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained", "InsertLeave" },
-	{ group = num_group, callback = function() vim.opt.relativenumber = true end })
-vim.api.nvim_create_autocmd({ "BufLeave", "FocusLost", "InsertEnter" },
-	{ group = num_group, callback = function() vim.opt.relativenumber = false end })
-
+vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained", "InsertLeave" }, {
+	group = num_group,
+	callback = function()
+		vim.opt.relativenumber = true
+	end,
+})
+vim.api.nvim_create_autocmd({ "BufLeave", "FocusLost", "InsertEnter" }, {
+	group = num_group,
+	callback = function()
+		vim.opt.relativenumber = false
+	end,
+})
 
 -- Set up tab stops
-vim.opt.tabstop = 3
+vim.opt.tabstop = 2
 
 -- Auto save on normal mode
 vim.api.nvim_create_autocmd("InsertLeave", {
 	pattern = "*",
 	callback = function()
 		vim.cmd("silent! write")
-	end
+	end,
 })
 
 vim.api.nvim_create_autocmd("FileType", {
@@ -243,8 +343,8 @@ vim.api.nvim_create_autocmd("FileType", {
 	callback = function()
 		vim.bo.shiftwidth = 4
 		vim.bo.tabstop = 4
-		vim.b.disabled_autoformat = true
-	end
+		vim.b.disable_autoformat = true
+	end,
 })
 
 vim.api.nvim_create_autocmd("FileType", {
@@ -252,23 +352,32 @@ vim.api.nvim_create_autocmd("FileType", {
 	callback = function()
 		vim.bo.shiftwidth = 4
 		vim.bo.tabstop = 4
-		vim.b.disabled_autoformat = true
-	end
+		vim.b.disable_autoformat = true
+	end,
 })
 
 vim.api.nvim_create_autocmd("FileType", {
-	pattern = "js",
+	pattern = "javascript",
+	callback = function()
+		vim.bo.shiftwidth = 2
+		vim.bo.tabstop = 2
+		vim.b.disable_autoformat = true
+	end,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "php",
 	callback = function()
 		vim.bo.shiftwidth = 4
 		vim.bo.tabstop = 4
-		vim.b.disabled_autoformat = true
-	end
+	end,
 })
 
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "css",
 	callback = function()
-		vim.bo.shiftwidth = 4
-		vim.bo.tabstop = 4
-	end
+		vim.bo.shiftwidth = 2
+		vim.bo.tabstop = 2
+		vim.b.disable_autoformat = true
+	end,
 })
