@@ -12,10 +12,30 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 require("lazy").setup({
 	spec = {
-    { "windwp/nvim-autopairs",
-			event = "InsertEnter",
-			config = true
+		{
+			"windwp/nvim-ts-autotag",
+			dependencies = { "nvim-treesitter/nvim-treesitter" },
+			config = function()
+				require("nvim-ts-autotag").setup({
+					opts = {
+						enable_close = true, -- Auto close tags
+						enable_rename = true, -- Auto rename pairs of tags
+						enable_close_on_slash = false, -- Auto close on trailing </
+					},
+					-- Add htmldjango to filetypes
+					filetypes = {
+						"html",
+						"javascript",
+						"typescript",
+						"svelte",
+						"php",
+						"htmldjango",
+					},
+				})
+			end,
 		},
+		{ "Glench/Vim-Jinja2-Syntax" },
+		{ "windwp/nvim-autopairs", event = "InsertEnter", config = true },
 		-- LSP & Completion
 		{ "neovim/nvim-lspconfig" },
 		{ "tpope/vim-fugitive" },
@@ -124,7 +144,7 @@ require("lazy").setup({
 require("nvim-tree").setup({
 	view = {
 		side = "right", -- Open file tree on the right side
-		width = 35, -- Set tree width
+		width = 30, -- Set tree width
 	},
 	update_focused_file = {
 		enable = true,
@@ -178,6 +198,10 @@ require("conform").setup({
 		if vim.b[bufnr].disable_autoformat then
 			return
 		end
+		return {
+			timeout_ms = 500,
+			lsp_fallback = true,
+		}
 	end,
 	-- Configure formatter options
 	formatters = {
@@ -186,8 +210,8 @@ require("conform").setup({
 				-- Set different tab widths based on filetype
 				if ctx.filetype == "javascript" or ctx.filetype == "typescript" then
 					return { "--tab-width", "2" }
-				elseif ctx.filetype == "css" then
-					return { "--tab-width", "4" }
+					-- elseif ctx.filetype == "css" then
+					-- 	return { "--tab-width", "4" }
 				end
 				return { "--tab-width", "4" } -- default
 			end,
@@ -225,12 +249,13 @@ require("nvim-treesitter.configs").setup({
 		"markdown",
 		"markdown_inline",
 		"svelte",
-	  "ruby",
+		"ruby",
+		"htmldjango",
 	}, -- Add more as needed
 	highlight = { enable = true }, -- Enable syntax highlighting
 	indent = {
 		enable = true,
-		disable = { "javascript", "typescript", "css", "html" }, -- Add problematic filetypes
+		disable = { "html" }, -- Add problematic filetypes
 	},
 	incremental_selection = {
 		enable = true,
@@ -357,6 +382,15 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 vim.api.nvim_create_autocmd("FileType", {
+	pattern = "typescript",
+	callback = function()
+		vim.bo.shiftwidth = 2
+		vim.bo.tabstop = 2
+		vim.b.disable_autoformat = true
+	end,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
 	pattern = "javascript",
 	callback = function()
 		vim.bo.shiftwidth = 2
@@ -376,8 +410,22 @@ vim.api.nvim_create_autocmd("FileType", {
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "css",
 	callback = function()
+		vim.bo.shiftwidth = 4
+		vim.bo.tabstop = 4
+	end,
+})
+
+vim.filetype.add({
+	extension = {
+		njk = "htmldjango",
+	},
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "htmldjango",
+	callback = function()
+		vim.bo.syntax = "htmldjango"
 		vim.bo.shiftwidth = 2
 		vim.bo.tabstop = 2
-		vim.b.disable_autoformat = true
 	end,
 })
